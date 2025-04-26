@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 // src/models/cart.rs
 use serde::{Deserialize, Serialize};
 
@@ -7,14 +9,17 @@ pub struct CartItem {
     pub quantity: u32,
 }
 
-// src/api/cart.rs
 use axum::{
     Router,
     extract::{Extension, Json},
+    response::AppendHeaders,
     routing::{delete, get, post, put},
 };
 
-use crate::services::cart_services::{CartError, CartService};
+use crate::{
+    services::cart_services::{CartError, CartService},
+    state::AppState,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct CartRequest {
@@ -22,7 +27,8 @@ pub struct CartRequest {
     pub quantity: Option<u32>,
 }
 
-pub fn cart_routes(cart_service: CartService) -> Router {
+pub fn cart_routes(appstate: Arc<AppState>) -> Router {
+    let cart_service = appstate.cart_service.clone();
     Router::new()
         .nest(
             "/api/cart",
@@ -95,6 +101,11 @@ async fn get_cart(
 
 #[cfg(test)]
 mod tests {
+    use crate::{
+        api::model::ProductService,
+        services::{checkout_service::CheckoutService, payment_service::PaymentService},
+    };
+
     use super::*;
     use axum::{
         Router,
@@ -106,7 +117,13 @@ mod tests {
 
     fn app() -> Router {
         let cart_service = CartService::new();
-        Router::new().merge(cart_routes(cart_service))
+        let appstate = AppState {
+            cart_service: cart_service.clone(),
+            checkout_service: CheckoutService::new(),
+            product_service: ProductService::new(),
+            payment_service: PaymentService::new(),
+        };
+        Router::new().merge(cart_routes(Arc::new(appstate)))
     }
 
     #[tokio::test]
