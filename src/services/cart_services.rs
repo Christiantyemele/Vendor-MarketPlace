@@ -1,3 +1,4 @@
+use core::error;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -12,12 +13,15 @@ pub enum CartError {
     LockError,
     #[error("Cart not found for user")]
     CartNotFound,
+    #[error("Item not found in cart: {0}")]
+    GenericError(String),
 }
 impl IntoResponse for CartError {
     fn into_response(self) -> axum::response::Response {
         let status = match self {
             CartError::LockError => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             CartError::CartNotFound => axum::http::StatusCode::NOT_FOUND,
+            CartError::GenericError(_) => axum::http::StatusCode::BAD_REQUEST,
         };
         (status, self.to_string()).into_response()
     }
