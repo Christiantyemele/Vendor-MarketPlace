@@ -14,7 +14,7 @@ use axum::{
     routing::{delete, get, post, put},
 };
 
-use crate::services::cart_services::CartService;
+use crate::services::cart_services::{CartError, CartService};
 
 #[derive(Debug, Deserialize)]
 pub struct CartRequest {
@@ -37,102 +37,60 @@ pub fn cart_routes(cart_service: CartService) -> Router {
 
 /// Handler to add an item to the user's shopping cart.
 ///
-/// # Endpoint
 /// POST `/api/cart/add`
-///
-/// # Request Body
-/// JSON object containing:
-/// - `product_id`: The ID of the product to add.
-/// - `quantity` (optional): Quantity of the product (defaults to 1 if not provided).
-///
-/// # Response
-/// Returns a JSON success message.
-///
-/// # Notes
-/// - Currently uses a fake `user_id` ("user123") for demonstration purposes.
-/// - If the product already exists in the cart, increments its quantity.
 async fn add_to_cart(
     Extension(cart_service): Extension<CartService>,
     Json(payload): Json<CartRequest>,
-) -> Json<&'static str> {
+) -> Result<Json<&'static str>, CartError> {
     let user_id = "user123".to_string();
     let item = CartItem {
         product_id: payload.product_id,
         quantity: payload.quantity.unwrap_or(1),
     };
-    cart_service.add_item(user_id, item);
-    Json("Item added to cart")
+
+    cart_service.add_item(user_id, item)?;
+    Ok(Json("Item added to cart"))
 }
 
 /// Handler to update the quantity of an item in the user's shopping cart.
 ///
-/// # Endpoint
 /// PUT `/api/cart/update`
-///
-/// # Request Body
-/// JSON object containing:
-/// - `product_id`: The ID of the product to update.
-/// - `quantity`: The new quantity to set.
-///
-/// # Response
-/// Returns a JSON success message.
-///
-/// # Notes
-/// - If the product is not found in the cart, no action is taken.
-/// - Assumes the `quantity` field is always provided when updating.
 async fn update_cart(
     Extension(cart_service): Extension<CartService>,
     Json(payload): Json<CartRequest>,
-) -> Json<&'static str> {
+) -> Result<Json<&'static str>, CartError> {
     let user_id = "user123".to_string();
     if let Some(quantity) = payload.quantity {
         let item = CartItem {
             product_id: payload.product_id,
             quantity,
         };
-        cart_service.update_item(user_id, item);
+        cart_service.update_item(user_id, item)?;
     }
-    Json("Item updated in cart")
+    Ok(Json("Item updated in cart"))
 }
 
 /// Handler to remove an item from the user's shopping cart.
 ///
-/// # Endpoint
 /// DELETE `/api/cart/remove`
-///
-/// # Request Body
-/// JSON object containing:
-/// - `product_id`: The ID of the product to remove.
-///
-/// # Response
-/// Returns a JSON success message.
-///
-/// # Notes
-/// - If the product is not found in the cart, no action is taken.
 async fn remove_from_cart(
     Extension(cart_service): Extension<CartService>,
     Json(payload): Json<CartRequest>,
-) -> Json<&'static str> {
+) -> Result<Json<&'static str>, CartError> {
     let user_id = "user123".to_string();
-    cart_service.remove_item(user_id, payload.product_id);
-    Json("Item removed from cart")
+    cart_service.remove_item(user_id, payload.product_id)?;
+    Ok(Json("Item removed from cart"))
 }
 
 /// Handler to retrieve the current contents of the user's shopping cart.
 ///
-/// # Endpoint
 /// GET `/api/cart`
-///
-/// # Response
-/// Returns a JSON array of `CartItem` objects currently in the user's cart.
-///
-/// # Notes
-/// - If the cart is empty, returns an empty array.
-/// - Currently uses a fake `user_id` ("user123") for demonstration purposes.
-async fn get_cart(Extension(cart_service): Extension<CartService>) -> Json<Vec<CartItem>> {
+async fn get_cart(
+    Extension(cart_service): Extension<CartService>,
+) -> Result<Json<Vec<CartItem>>, CartError> {
     let user_id = "user123".to_string();
-    let cart = cart_service.get_cart(user_id);
-    Json(cart)
+    let cart = cart_service.get_cart(user_id)?;
+    Ok(Json(cart))
 }
 
 #[cfg(test)]
