@@ -12,7 +12,6 @@ pub struct CartItem {
 use axum::{
     Router,
     extract::{Extension, Json},
-    response::AppendHeaders,
     routing::{delete, get, post, put},
 };
 

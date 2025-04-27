@@ -1,7 +1,7 @@
 use Vendor_MarketPlace::{
     api::{
         cart::cart_routes, checkout::checkout_routes, handler::search_products,
-        model::ProductService,
+        model::ProductService, orders::order_routes,
     },
     services::{
         cart_services::CartService, checkout_service::CheckoutService,
@@ -30,6 +30,7 @@ async fn main() {
         .route("/api/products", get(search_products))
         .merge(cart_routes(app_state.clone()))
         .merge(checkout_routes())
+        .merge(order_routes())
         .layer(Extension(app_state));
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 8000));
