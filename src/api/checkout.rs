@@ -8,7 +8,6 @@ use axum::{
 
 use serde::Deserialize;
 
-
 #[derive(Debug, Deserialize)]
 pub struct CheckoutRequest {
     pub payment_method: String, // "MTN" or "Orange"
@@ -26,9 +25,7 @@ pub fn checkout_routes() -> Router {
         .route("/api/payment-callback", post(payment_callback))
 }
 
-async fn checkout(
-    Extension(state): Extension<AppState>,
-) -> Result<Json<&'static str>, CartError> {
+async fn checkout(Extension(state): Extension<AppState>) -> Result<Json<&'static str>, CartError> {
     let user_id = "user123".to_string();
 
     let cart_items = state
@@ -41,16 +38,19 @@ async fn checkout(
 
     let mut total_amount = 0.0;
     for item in &cart_items {
-        let product = state.product_service
-            .get_product_by_id(&item.product_id).await
-            .map_err(|_| CartError::GenericError("product not found".to_owned()))?; 
+        let product = state
+            .product_service
+            .get_product_by_id(&item.product_id)
+            .await
+            .map_err(|_| CartError::GenericError("product not found".to_owned()))?;
         total_amount += item.quantity as f64 * product.price;
-    };
+    }
 
     let product_ids: Vec<String> = cart_items.into_iter().map(|item| item.product_id).collect();
     let order = state
         .checkout_service
-        .create_order(user_id, product_ids, total_amount);
+        .create_order(user_id, product_ids, total_amount)
+        .map_err(|_| CartError::GenericError("Failed to create order".to_string()))?;
 
     state.payment_service.initiate_payment(&order);
 
@@ -60,7 +60,7 @@ async fn checkout(
 async fn payment_callback(
     Extension(state): Extension<AppState>,
     Json(payload): Json<PaymentCallback>,
-) -> Json<&'static str> {
+) -> Result<Json<&'static str>, CartError> {
     let status = match payload.payment_status.as_str() {
         "success" => OrderStatus::Paid,
         "failure" => OrderStatus::Failed,
@@ -69,7 +69,7 @@ async fn payment_callback(
 
     state
         .checkout_service
-        .update_order_status(payload.order_id, status);
-
-    Json("Payment status updated")
+        .update_order_status(payload.order_id, status)
+        .map_err(|_| CartError::GenericError("Failed to update order status".to_string()))?;
+    Ok(Json("Payment status updated"))
 }
